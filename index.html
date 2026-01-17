@@ -2,322 +2,306 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D Othello (Reversi)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>3D Othello - Sound & Strategy</title>
     <style>
-        body {
-            margin: 0;
-            overflow: hidden;
-            background-color: #1a1a1a;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            user-select: none; /* テキスト選択防止 */
+        :root {
+            --ui-bg: rgba(0, 0, 0, 0.85);
+            --accent-easy: #4CAF50;
+            --accent-normal: #FF9800;
+            --accent-hard: #f44336;
         }
 
-        /* ゲームUIオーバーレイ */
-        #ui-container {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none; /* 3Dキャンバスへのクリックを通すため */
+        body {
+            margin: 0; padding: 0; overflow: hidden;
+            background-color: #121212;
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            user-select: none; -webkit-touch-callout: none;
+            position: fixed; width: 100%; height: 100%;
+        }
+
+        /* スタート画面 */
+        #start-screen {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.9);
             display: flex;
             flex-direction: column;
-            justify-content: space-between;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            transition: opacity 0.5s ease;
+        }
+
+        #start-screen h2 {
+            color: white;
+            font-size: 32px;
+            margin-bottom: 40px;
+            letter-spacing: 5px;
+        }
+
+        .level-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            width: 250px;
+        }
+
+        .level-btn {
+            padding: 15px;
+            font-size: 18px;
+            font-weight: bold;
+            color: white;
+            border: none;
+            border-radius: 40px;
+            cursor: pointer;
+            transition: transform 0.2s, opacity 0.2s;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+
+        .level-btn:active { transform: scale(0.95); }
+        .btn-easy { background: var(--accent-easy); }
+        .btn-normal { background: var(--accent-normal); }
+        .btn-hard { background: var(--accent-hard); }
+
+        /* ゲームUI */
+        #ui-container {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            display: flex; flex-direction: column; justify-content: space-between;
+            padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom) 0;
+            box-sizing: border-box; z-index: 10;
         }
 
         #header {
-            background: linear-gradient(to bottom, rgba(0,0,0,0.8), rgba(0,0,0,0));
-            color: white;
-            padding: 20px;
-            text-align: center;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
-            pointer-events: auto;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.9), rgba(0,0,0,0));
+            color: white; padding: 15px; text-align: center; pointer-events: auto;
         }
 
-        h1 {
-            margin: 0;
-            font-size: 24px;
-            letter-spacing: 2px;
-        }
+        h1 { margin: 0; font-size: 18px; letter-spacing: 2px; }
+        #difficulty-label { font-size: 12px; color: #aaa; margin-top: 4px; }
 
-        #score-board {
-            display: flex;
-            justify-content: center;
-            gap: 40px;
-            margin-top: 10px;
-            font-size: 18px;
-            font-weight: bold;
-        }
-
+        #score-board { display: flex; justify-content: center; gap: 10px; margin-top: 10px; }
         .score-box {
             background: rgba(255, 255, 255, 0.1);
-            padding: 5px 15px;
-            border-radius: 20px;
-            backdrop-filter: blur(5px);
-            border: 1px solid rgba(255,255,255,0.2);
-            display: flex;
-            align-items: center;
-            gap: 10px;
+            padding: 6px 15px; border-radius: 15px;
+            backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.1);
+            display: flex; align-items: center; gap: 8px; font-size: 14px;
         }
 
-        .indicator {
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            display: inline-block;
-        }
-        .indicator.black { background-color: #111; border: 1px solid #555; }
+        .indicator { width: 12px; height: 12px; border-radius: 50%; }
+        .indicator.black { background-color: #000; border: 1px solid #555; }
         .indicator.white { background-color: #fff; }
 
-        #message-area {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            text-align: center;
-            pointer-events: none;
-        }
-
         #turn-message {
-            font-size: 32px;
-            color: white;
-            background-color: rgba(0, 0, 0, 0.7);
-            padding: 20px 40px;
-            border-radius: 10px;
-            opacity: 0;
-            transition: opacity 0.5s;
-            text-shadow: 0 2px 5px black;
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            font-size: 20px; color: white; background-color: var(--ui-bg);
+            padding: 12px 30px; border-radius: 30px;
+            opacity: 0; transition: opacity 0.4s; pointer-events: none;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.6); text-align: center;
+            z-index: 20;
         }
 
         #footer {
-            padding: 20px;
-            text-align: center;
-            pointer-events: auto;
-            background: linear-gradient(to top, rgba(0,0,0,0.8), rgba(0,0,0,0));
+            padding: 20px; text-align: center; pointer-events: auto;
+            background: linear-gradient(to top, rgba(0,0,0,0.9), rgba(0,0,0,0));
         }
 
-        button {
-            background: #4CAF50;
-            color: white;
-            border: none;
-            padding: 12px 24px;
-            font-size: 16px;
-            border-radius: 25px;
-            cursor: pointer;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-            transition: transform 0.1s, background 0.2s;
-            outline: none;
+        .restart-btn {
+            background: #444; color: white; border: none;
+            padding: 10px 25px; font-size: 14px; border-radius: 20px;
+            cursor: pointer; opacity: 0.8;
         }
 
-        button:hover {
-            background: #45a049;
-            transform: scale(1.05);
-        }
+        .tutorial { font-size: 10px; color: #888; margin-top: 10px; }
 
-        button:active {
-            transform: scale(0.95);
-        }
-
-        /* ローディングオーバーレイ */
-        #loading {
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: #000;
-            color: white;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 999;
-            transition: opacity 0.5s;
-        }
-        
-        .tutorial {
-            font-size: 12px;
-            color: #aaa;
-            margin-top: 5px;
+        @media (min-width: 768px) {
+            h1 { font-size: 24px; }
+            .score-box { font-size: 18px; padding: 10px 30px; }
+            #start-screen h2 { font-size: 48px; }
         }
     </style>
-    <!-- Three.js CDN -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
 <body>
 
-    <div id="loading">読み込み中...</div>
+    <div id="start-screen">
+        <h2>OTHELLO 3D</h2>
+        <div class="level-buttons">
+            <button class="level-btn btn-easy" onclick="startGame('EASY')">EASY</button>
+            <button class="level-btn btn-normal" onclick="startGame('NORMAL')">NORMAL</button>
+            <button class="level-btn btn-hard" onclick="startGame('HARD')">HARD</button>
+        </div>
+    </div>
 
     <div id="ui-container">
         <div id="header">
-            <h1>3D OTHELLO</h1>
+            <h1>OTHELLO 3D</h1>
+            <div id="difficulty-label">LEVEL: -</div>
             <div id="score-board">
                 <div class="score-box" id="score-black-box">
                     <span class="indicator black"></span>
-                    あなた (黒): <span id="score-black">2</span>
+                    YOU: <span id="score-black">2</span>
                 </div>
                 <div class="score-box" id="score-white-box">
                     <span class="indicator white"></span>
-                    CPU (白): <span id="score-white">2</span>
+                    CPU: <span id="score-white">2</span>
                 </div>
             </div>
         </div>
 
-        <div id="message-area">
-            <div id="turn-message">あなたの番です</div>
-        </div>
+        <div id="turn-message">あなたの番です</div>
 
         <div id="footer">
-            <button onclick="resetGame()">ゲームリセット</button>
-            <div class="tutorial">ドラッグしてカメラ回転 / マウスホイールでズーム</div>
+            <button class="restart-btn" onclick="showStartScreen()">タイトルへ戻る</button>
+            <div class="tutorial">ドラッグでカメラ回転 / 盤面をタップで石を置く</div>
         </div>
     </div>
 
     <script>
-        // ==========================================
-        // ゲーム定数と状態
-        // ==========================================
+        // --- 設定値 ---
         const BOARD_SIZE = 8;
         const CELL_SIZE = 10;
         const BOARD_WIDTH = BOARD_SIZE * CELL_SIZE;
-        const EMPTY = 0;
-        const BLACK = 1;
-        const WHITE = 2;
+        const EMPTY = 0, BLACK = 1, WHITE = 2;
+        const ZOOM_FACTOR = 0.9; 
 
-        let boardState = []; // 2次元配列
+        let boardState = [];
         let currentPlayer = BLACK;
         let gameActive = false;
-        let isAnimating = false;
+        let gameLevel = 'NORMAL';
         
-        // 3Dオブジェクト管理用
-        let scene, camera, renderer;
-        let pieces = []; // 石のメッシュを格納する配列 (8x8)
-        let tileMeshes = []; // グリッドのタイル
-        let raycaster;
-        let mouse;
+        let scene, camera, renderer, raycaster, mouse;
+        let pieces = [];
+        let tileMeshes = [];
         
-        // カメラ操作用変数
         let isDragging = false;
         let previousMousePosition = { x: 0, y: 0 };
-        let cameraAngle = { theta: Math.PI / 4, phi: Math.PI / 4 }; // 初期角度
-        let cameraRadius = 120;
+        let cameraAngle = { theta: 0, phi: Math.PI / 3 }; 
+        let cameraRadius = 100;
 
-        // ==========================================
-        // 初期化とメインループ
-        // ==========================================
-        window.onload = function() {
+        // --- 音声システム (Web Audio API) ---
+        let audioCtx = null;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        function playStoneSound() {
+            if (!audioCtx) return;
+            initAudio(); // 念のため再開
+
+            const now = audioCtx.currentTime;
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+
+            // 「カチッ」という音のシミュレーション
+            oscillator.type = 'triangle';
+            oscillator.frequency.setValueAtTime(800, now);
+            oscillator.frequency.exponentialRampToValueAtTime(100, now + 0.1);
+
+            gainNode.gain.setValueAtTime(0.2, now);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
+
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+
+            oscillator.start(now);
+            oscillator.stop(now + 0.1);
+
+            // わずかなノイズを混ぜて石の質感を出す
+            const noiseGain = audioCtx.createGain();
+            const bufferSize = audioCtx.sampleRate * 0.05;
+            const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+
+            const noiseSource = audioCtx.createBufferSource();
+            noiseSource.buffer = buffer;
+            noiseGain.gain.setValueAtTime(0.05, now);
+            noiseGain.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
+
+            noiseSource.connect(noiseGain);
+            noiseGain.connect(audioCtx.destination);
+            noiseSource.start(now);
+        }
+
+        window.onload = () => {
             init3D();
-            initGame();
             animate();
-            
-            // ローディング画面を消す
-            const loading = document.getElementById('loading');
-            loading.style.opacity = 0;
-            setTimeout(() => loading.remove(), 500);
         };
 
         function init3D() {
-            // シーン
             scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x222222);
-            // フォグを追加して奥行き感を出す
-            scene.fog = new THREE.Fog(0x222222, 100, 300);
-
-            // カメラ
-            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
-            updateCameraPosition();
-
-            // レンダラー
+            scene.background = new THREE.Color(0x121212);
+            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 1000);
             renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setPixelRatio(window.devicePixelRatio);
             renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.shadowMap.enabled = true; // 影を有効化
-            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            renderer.shadowMap.enabled = true;
             document.body.appendChild(renderer.domElement);
 
-            // ライティング
-            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
-            scene.add(ambientLight);
+            scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+            const light = new THREE.DirectionalLight(0xffffff, 0.5);
+            light.position.set(20, 100, 50);
+            light.castShadow = true;
+            scene.add(light);
 
-            const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
-            dirLight.position.set(50, 100, 50);
-            dirLight.castShadow = true;
-            dirLight.shadow.mapSize.width = 2048;
-            dirLight.shadow.mapSize.height = 2048;
-            dirLight.shadow.camera.near = 0.5;
-            dirLight.shadow.camera.far = 500;
-            // 影の範囲を調整
-            const d = 60;
-            dirLight.shadow.camera.left = -d;
-            dirLight.shadow.camera.right = d;
-            dirLight.shadow.camera.top = d;
-            dirLight.shadow.camera.bottom = -d;
-            scene.add(dirLight);
-
-            // ポイントライト（盤面を強調）
-            const pointLight = new THREE.PointLight(0xffeecc, 0.5, 100);
-            pointLight.position.set(0, 30, 0);
-            scene.add(pointLight);
-
-            // 盤面の作成
             createBoard();
-
-            // レイキャスター（クリック判定用）
             raycaster = new THREE.Raycaster();
             mouse = new THREE.Vector2();
 
-            // イベントリスナー
+            onWindowResize();
             window.addEventListener('resize', onWindowResize, false);
             
-            // マウス操作（PC）
-            document.addEventListener('mousedown', onMouseDown, false);
+            const options = { passive: false };
+            document.addEventListener('mousedown', e => { 
+                initAudio(); // ユーザー操作でオーディオ有効化
+                isDragging = true; 
+                previousMousePosition = { x: e.clientX, y: e.clientY }; 
+            }, false);
             document.addEventListener('mousemove', onMouseMove, false);
-            document.addEventListener('mouseup', onMouseUp, false);
-            document.addEventListener('wheel', onMouseWheel, { passive: false }); // ズーム
+            document.addEventListener('mouseup', () => isDragging = false, false);
+            document.addEventListener('wheel', e => { 
+                e.preventDefault(); 
+                cameraRadius = Math.max(50, Math.min(220, cameraRadius + e.deltaY * 0.2)); 
+                updateCamera(); 
+            }, options);
             document.addEventListener('click', onClick, false);
 
-            // タッチ操作（スマホ）
-            document.addEventListener('touchstart', onTouchStart, { passive: false });
-            document.addEventListener('touchmove', onTouchMove, { passive: false });
-            document.addEventListener('touchend', onTouchEnd, false);
+            document.addEventListener('touchstart', e => { 
+                initAudio(); // ユーザー操作でオーディオ有効化
+                if(e.touches.length === 1) { 
+                    isDragging = true; 
+                    previousMousePosition = { x: e.touches[0].clientX, y: e.touches[0].clientY }; 
+                } 
+            }, options);
+            document.addEventListener('touchmove', onTouchMove, options);
+            document.addEventListener('touchend', () => isDragging = false, false);
         }
 
-        // ==========================================
-        // 3Dオブジェクト生成
-        // ==========================================
         function createBoard() {
-            // ボードの土台（木枠）
-            const woodMaterial = new THREE.MeshStandardMaterial({ 
-                color: 0x5c3a21, 
-                roughness: 0.6 
-            });
-            const frameGeo = new THREE.BoxGeometry(BOARD_WIDTH + 4, 2, BOARD_WIDTH + 4);
-            const frame = new THREE.Mesh(frameGeo, woodMaterial);
-            frame.position.y = -1.1;
-            frame.receiveShadow = true;
+            const frame = new THREE.Mesh(
+                new THREE.BoxGeometry(BOARD_WIDTH + 6, 2, BOARD_WIDTH + 6),
+                new THREE.MeshStandardMaterial({ color: 0x212121, roughness: 0.8 })
+            );
+            frame.position.y = -1.5;
             scene.add(frame);
-
-            // グリッド（緑のフェルト）
-            const tileGeo = new THREE.BoxGeometry(CELL_SIZE - 0.5, 1, CELL_SIZE - 0.5);
-            const tileMatDark = new THREE.MeshStandardMaterial({ color: 0x006400, roughness: 0.8 }); // 濃い緑
-            const tileMatLight = new THREE.MeshStandardMaterial({ color: 0x007500, roughness: 0.8 }); // 明るい緑
-
+            const m1 = new THREE.MeshStandardMaterial({ color: 0x1b5e20 });
+            const m2 = new THREE.MeshStandardMaterial({ color: 0x2e7d32 });
             for (let z = 0; z < BOARD_SIZE; z++) {
                 pieces[z] = [];
                 for (let x = 0; x < BOARD_SIZE; x++) {
-                    pieces[z][x] = null; // 石のプレースホルダー
-
-                    // チェック模様になるように色を変える
-                    const mat = (x + z) % 2 === 0 ? tileMatDark : tileMatLight;
-                    const tile = new THREE.Mesh(tileGeo, mat);
-                    
-                    // 座標変換 (0,0)が左上になるように調整
-                    // 中心を(0,0)とするためオフセット
-                    const posX = (x - BOARD_SIZE / 2 + 0.5) * CELL_SIZE;
-                    const posZ = (z - BOARD_SIZE / 2 + 0.5) * CELL_SIZE;
-                    
-                    tile.position.set(posX, -0.5, posZ);
-                    tile.receiveShadow = true;
-                    
-                    // ユーザーデータにグリッド座標を持たせる（クリック判定用）
+                    const tile = new THREE.Mesh(new THREE.BoxGeometry(CELL_SIZE - 0.5, 1, CELL_SIZE - 0.5), (x + z) % 2 === 0 ? m1 : m2);
+                    tile.position.set((x - 3.5) * CELL_SIZE, -0.5, (z - 3.5) * CELL_SIZE);
                     tile.userData = { gridX: x, gridZ: z };
-                    
                     scene.add(tile);
                     tileMeshes.push(tile);
                 }
@@ -325,496 +309,223 @@
         }
 
         function createPiece(color, x, z) {
-            // 石のジオメトリ: 円柱
-            const radius = CELL_SIZE * 0.4;
-            const height = 1.5;
-            const segments = 32;
-            const geometry = new THREE.CylinderGeometry(radius, radius, height, segments);
-
-            // マテリアル: 側面(0), 上面(1), 底面(2)
-            // Three.jsのCylinderGeometryのマテリアルインデックスは [side, top, bottom]
-            const blackMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.3, metalness: 0.2 });
-            const whiteMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.3, metalness: 0.2 });
-            const edgeMat = new THREE.MeshStandardMaterial({ color: 0x888888, roughness: 0.5 }); // 少しグレー
-
-            // ここで工夫: 常に「上面が黒、底面が白」のオブジェクトを作る。
-            // 白を表示したいときはオブジェクトごと180度(PI)回転させる。
-            const materials = [
-                edgeMat,  // 側面
-                blackMat, // 上面 (Y+)
-                whiteMat  // 底面 (Y-)
+            const geometry = new THREE.CylinderGeometry(CELL_SIZE * 0.4, CELL_SIZE * 0.4, 2, 32);
+            const mats = [
+                new THREE.MeshStandardMaterial({ color: 0x444444 }), 
+                new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.2 }), 
+                new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.2 })
             ];
-
-            const piece = new THREE.Mesh(geometry, materials);
-            
-            const posX = (x - BOARD_SIZE / 2 + 0.5) * CELL_SIZE;
-            const posZ = (z - BOARD_SIZE / 2 + 0.5) * CELL_SIZE;
-
-            piece.position.set(posX, 0.8, posZ); // 少し浮かせる
-            piece.castShadow = true;
-            piece.receiveShadow = true;
-
-            // 初期回転
-            if (color === WHITE) {
-                piece.rotation.x = Math.PI; // 裏返す（白を上にする）
-            } else {
-                piece.rotation.x = 0; // 黒が上
-            }
-
-            // アニメーション用の現在値を保存
-            piece.userData = { 
-                currentRotationX: piece.rotation.x,
-                targetRotationX: piece.rotation.x,
-                color: color
-            };
-
-            scene.add(piece);
-            pieces[z][x] = piece;
+            const p = new THREE.Mesh(geometry, mats);
+            p.position.set((x - 3.5) * CELL_SIZE, 1, (z - 3.5) * CELL_SIZE);
+            if (color === WHITE) p.rotation.x = Math.PI;
+            p.userData = { targetRotationX: p.rotation.x };
+            scene.add(p);
+            pieces[z][x] = p;
         }
 
-        // ==========================================
-        // ゲームロジック
-        // ==========================================
-        function initGame() {
-            // 盤面リセット
-            boardState = Array(BOARD_SIZE).fill(null).map(() => Array(BOARD_SIZE).fill(EMPTY));
-            
-            // 既存の石を削除
-            for(let z=0; z<BOARD_SIZE; z++){
-                for(let x=0; x<BOARD_SIZE; x++){
-                    if(pieces[z][x]) {
-                        scene.remove(pieces[z][x]);
-                        pieces[z][x].geometry.dispose();
-                        pieces[z][x] = null;
-                    }
-                }
-            }
-
-            // 初期配置
-            // 白: (3,3), (4,4) / 黒: (3,4), (4,3)
-            placeInitialPiece(3, 3, WHITE);
-            placeInitialPiece(4, 4, WHITE);
-            placeInitialPiece(3, 4, BLACK);
-            placeInitialPiece(4, 3, BLACK);
-
-            currentPlayer = BLACK;
-            gameActive = true;
-            updateUI();
-            showMessage("あなたの番です (黒)", 2000);
+        function onWindowResize() {
+            const w = window.innerWidth, h = window.innerHeight, aspect = w / h;
+            camera.aspect = aspect; camera.updateProjectionMatrix(); renderer.setSize(w, h);
+            const baseSize = BOARD_WIDTH * ZOOM_FACTOR;
+            cameraRadius = aspect < 1 ? (baseSize / Math.tan((camera.fov * Math.PI / 180) / 2)) / aspect : (baseSize / Math.tan((camera.fov * Math.PI / 180) / 2));
+            updateCamera();
         }
 
-        function placeInitialPiece(x, z, color) {
-            boardState[z][x] = color;
-            createPiece(color, x, z);
+        function updateCamera() {
+            camera.position.set(
+                cameraRadius * Math.sin(cameraAngle.phi) * Math.sin(cameraAngle.theta),
+                cameraRadius * Math.cos(cameraAngle.phi),
+                cameraRadius * Math.sin(cameraAngle.phi) * Math.cos(cameraAngle.theta)
+            );
+            camera.lookAt(0, 0, 0);
         }
 
-        // 石を置けるかチェック
-        function isValidMove(gridX, gridZ, player) {
-            if (boardState[gridZ][gridX] !== EMPTY) return false;
-
-            const opponent = player === BLACK ? WHITE : BLACK;
-            const directions = [
-                [-1, -1], [-1, 0], [-1, 1],
-                [0, -1],           [0, 1],
-                [1, -1],  [1, 0],  [1, 1]
-            ];
-
-            for (let [dx, dy] of directions) {
-                let x = gridX + dx;
-                let z = gridZ + dy;
-                let hasOpponent = false;
-
-                while (x >= 0 && x < BOARD_SIZE && z >= 0 && z < BOARD_SIZE) {
-                    if (boardState[z][x] === opponent) {
-                        hasOpponent = true;
-                    } else if (boardState[z][x] === player) {
-                        if (hasOpponent) return true; // 挟める
-                        break;
-                    } else {
-                        break; // 空白
-                    }
-                    x += dx;
-                    z += dy;
-                }
-            }
-            return false;
-        }
-
-        // 実際に石を置いて裏返す
-        function executeMove(gridX, gridZ, player) {
-            if (!gameActive) return;
-
-            boardState[gridZ][gridX] = player;
-            createPiece(player, gridX, gridZ); // 新しい石を生成
-
-            const opponent = player === BLACK ? WHITE : BLACK;
-            const directions = [
-                [-1, -1], [-1, 0], [-1, 1],
-                [0, -1],           [0, 1],
-                [1, -1],  [1, 0],  [1, 1]
-            ];
-            
-            let piecesToFlip = [];
-
-            for (let [dx, dy] of directions) {
-                let x = gridX + dx;
-                let z = gridZ + dy;
-                let potentialFlips = [];
-
-                while (x >= 0 && x < BOARD_SIZE && z >= 0 && z < BOARD_SIZE) {
-                    if (boardState[z][x] === opponent) {
-                        potentialFlips.push({x, z});
-                    } else if (boardState[z][x] === player) {
-                        if (potentialFlips.length > 0) {
-                            piecesToFlip = piecesToFlip.concat(potentialFlips);
+        function animate() {
+            requestAnimationFrame(animate);
+            for (let z = 0; z < 8; z++) {
+                for (let x = 0; x < 8; x++) {
+                    const p = pieces[z][x];
+                    if (p) {
+                        const d = p.userData.targetRotationX - p.rotation.x;
+                        if (Math.abs(d) > 0.01) {
+                            p.rotation.x += d * 0.1;
+                            p.position.y = 1 + Math.sin(Math.abs(d)) * 8;
+                        } else {
+                            p.rotation.x = p.userData.targetRotationX;
+                            p.position.y = 1;
                         }
-                        break;
-                    } else {
-                        break;
                     }
-                    x += dx;
-                    z += dy;
                 }
             }
-
-            // 内部データの更新とアニメーション開始
-            piecesToFlip.forEach(pos => {
-                boardState[pos.z][pos.x] = player;
-                flipPiece3D(pos.x, pos.z, player);
-            });
-
-            // ターン交代処理
-            endTurn();
+            renderer.render(scene, camera);
         }
 
-        function flipPiece3D(x, z, newColor) {
-            const piece = pieces[z][x];
-            if (!piece) return;
-
-            // アニメーションターゲット設定
-            // 黒(1)なら rotation.x = 0, 白(2)なら rotation.x = PI
-            // 現在の状態から一番近い回転方向へ回す（連続回転対応）
-            
-            // 現在のターゲット
-            let currentTarget = piece.userData.targetRotationX;
-            
-            // 新しいターゲット
-            // もし黒にしたいなら、2*PIの倍数へ。白なら PI + 2*PIの倍数へ。
-            // 簡易的に、現在のX回転に PI を足すか引くかで反転させる。
-            // 黒=上面, 白=底面
-            // 黒(上)から白(下)へ -> X軸 +180度
-            
-            if (newColor === WHITE) {
-                 piece.userData.targetRotationX = Math.PI; // 単純化：常にPIを目指す
-                 // 実際には既に回っている可能性があるので、近い方へ
-                 if (Math.abs(piece.rotation.x % (Math.PI*2)) < 0.1) {
-                     piece.userData.targetRotationX = piece.rotation.x + Math.PI;
-                 }
-            } else {
-                piece.userData.targetRotationX = 0; // 単純化：常に0を目指す
-                if (Math.abs((piece.rotation.x - Math.PI) % (Math.PI*2)) < 0.1) {
-                    piece.userData.targetRotationX = piece.rotation.x + Math.PI;
-                }
-            }
-            
-            piece.userData.color = newColor;
+        // --- Game Logic ---
+        function showStartScreen() {
+            gameActive = false;
+            document.getElementById('start-screen').style.display = 'flex';
+            document.getElementById('start-screen').style.opacity = '1';
         }
 
-        function endTurn() {
-            updateUI();
-            
-            // プレイヤー交代
-            currentPlayer = (currentPlayer === BLACK) ? WHITE : BLACK;
-
-            // 置ける場所があるか確認
-            if (!canPlayerMove(currentPlayer)) {
-                // パスの場合
-                currentPlayer = (currentPlayer === BLACK) ? WHITE : BLACK;
-                if (!canPlayerMove(currentPlayer)) {
-                    // 両者置けない -> ゲーム終了
-                    gameActive = false;
-                    declareWinner();
-                    return;
-                }
-                showMessage("パス！ " + (currentPlayer === BLACK ? "黒" : "白") + "の番です", 2000);
-            }
-
-            if (currentPlayer === WHITE && gameActive) {
-                // CPUのターン
-                showMessage("CPU思考中...", 0);
-                setTimeout(cpuMove, 1000); // 少し待ってから行動
-            } else {
-                if(gameActive) showMessage("あなたの番です", 1000);
-            }
+        function startGame(level) {
+            initAudio(); // ゲーム開始時に音声コンテキストを有効化
+            gameLevel = level;
+            document.getElementById('difficulty-label').textContent = `LEVEL: ${level}`;
+            document.getElementById('start-screen').style.opacity = '0';
+            setTimeout(() => {
+                document.getElementById('start-screen').style.display = 'none';
+                initGame();
+            }, 500);
         }
 
-        function canPlayerMove(player) {
-            for (let z = 0; z < BOARD_SIZE; z++) {
-                for (let x = 0; x < BOARD_SIZE; x++) {
-                    if (isValidMove(x, z, player)) return true;
+        function initGame() {
+            boardState = Array(8).fill(null).map(() => Array(8).fill(EMPTY));
+            pieces.forEach((row, z) => row.forEach((p, x) => { if(p){ scene.remove(p); pieces[z][x]=null; }}));
+            place(3, 3, WHITE); place(4, 4, WHITE); place(3, 4, BLACK); place(4, 3, BLACK);
+            currentPlayer = BLACK; gameActive = true; updateUI(); showMsg("あなたの番です", 2000);
+        }
+
+        function place(x, z, c) { 
+            boardState[z][x] = c; 
+            createPiece(c, x, z); 
+        }
+        
+        function canPlace(gx, gz, p) {
+            if (boardState[gz][gx] !== EMPTY) return false;
+            const opp = p === BLACK ? WHITE : BLACK;
+            const dirs = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
+            for (let [dx, dz] of dirs) {
+                let x = gx + dx, z = gz + dz, ok = false;
+                while (x >= 0 && x < 8 && z >= 0 && z < 8) {
+                    if (boardState[z][x] === opp) ok = true;
+                    else if (boardState[z][x] === p) { if (ok) return true; break; }
+                    else break;
+                    x += dx; z += dz;
                 }
             }
             return false;
         }
 
-        function countStones() {
-            let black = 0, white = 0;
-            for (let z = 0; z < BOARD_SIZE; z++) {
-                for (let x = 0; x < BOARD_SIZE; x++) {
-                    if (boardState[z][x] === BLACK) black++;
-                    else if (boardState[z][x] === WHITE) white++;
-                }
-            }
-            return { black, white };
-        }
-
-        function updateUI() {
-            const counts = countStones();
-            document.getElementById('score-black').textContent = counts.black;
-            document.getElementById('score-white').textContent = counts.white;
-            
-            const bBox = document.getElementById('score-black-box');
-            const wBox = document.getElementById('score-white-box');
-            
-            if(currentPlayer === BLACK) {
-                bBox.style.background = "rgba(255, 255, 255, 0.3)";
-                wBox.style.background = "rgba(255, 255, 255, 0.1)";
-            } else {
-                bBox.style.background = "rgba(255, 255, 255, 0.1)";
-                wBox.style.background = "rgba(255, 255, 255, 0.3)";
-            }
-        }
-
-        function showMessage(text, duration) {
-            const el = document.getElementById('turn-message');
-            el.textContent = text;
-            el.style.opacity = 1;
-            
-            if (duration > 0) {
-                setTimeout(() => {
-                    el.style.opacity = 0;
-                }, duration);
-            }
-        }
-
-        function declareWinner() {
-            const counts = countStones();
-            let msg = "";
-            if (counts.black > counts.white) {
-                msg = "あなたの勝ち！";
-            } else if (counts.white > counts.black) {
-                msg = "CPUの勝ち...";
-            } else {
-                msg = "引き分け！";
-            }
-            showMessage("ゲーム終了: " + msg, 0); // 消えない
-        }
-
-        // ==========================================
-        // CPU ロジック (簡易AI)
-        // ==========================================
-        function cpuMove() {
-            if (!gameActive || currentPlayer !== WHITE) return;
-
-            let validMoves = [];
-            // 全ての置ける場所を探す
-            for (let z = 0; z < BOARD_SIZE; z++) {
-                for (let x = 0; x < BOARD_SIZE; x++) {
-                    if (isValidMove(x, z, WHITE)) {
-                        // 評価値を計算（簡易的にひっくり返せる枚数）
-                        // 本格的には角(corner)の重みを高くする
-                        let score = calculateFlipCount(x, z, WHITE);
-                        
-                        // 角は超重要
-                        if ((x===0||x===7) && (z===0||z===7)) score += 10; 
-                        
-                        validMoves.push({x, z, score});
-                    }
-                }
-            }
-
-            if (validMoves.length > 0) {
-                // スコアが高い順にソートして、上位からランダムまたは一番上を選ぶ
-                validMoves.sort((a, b) => b.score - a.score);
-                
-                // 最善手を選ぶ（少しランダム性を入れると人間味が出るが、今回は強い方を選ぶ）
-                const move = validMoves[0];
-                executeMove(move.x, move.z, WHITE);
-            }
-        }
-
-        // シミュレーション用：何枚返せるか
-        function calculateFlipCount(gridX, gridZ, player) {
-            const opponent = player === BLACK ? WHITE : BLACK;
-            const directions = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
+        function getFlipCount(gx, gz, p) {
+            const opp = p === BLACK ? WHITE : BLACK;
             let total = 0;
-
-            for (let [dx, dy] of directions) {
-                let x = gridX + dx;
-                let z = gridZ + dy;
-                let count = 0;
-                while (x >= 0 && x < BOARD_SIZE && z >= 0 && z < BOARD_SIZE) {
-                    if (boardState[z][x] === opponent) {
-                        count++;
-                    } else if (boardState[z][x] === player) {
-                        total += count;
-                        break;
-                    } else {
-                        break;
-                    }
-                    x += dx;
-                    z += dy;
+            [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]].forEach(([dx, dz]) => {
+                let x = gx + dx, z = gz + dz, count = 0;
+                while (x >= 0 && x < 8 && z >= 0 && z < 8) {
+                    if (boardState[z][x] === opp) count++;
+                    else if (boardState[z][x] === p) { total += count; break; }
+                    else break;
+                    x += dx; z += dz;
                 }
-            }
+            });
             return total;
         }
 
-        function resetGame() {
-            initGame();
-        }
+        function move(gx, gz, p) {
+            if (!gameActive) return;
+            
+            // 石を置いた音
+            playStoneSound();
 
-        // ==========================================
-        // 入力イベントハンドラ
-        // ==========================================
-        function onClick(event) {
-            // UI上のクリックは無視（UIコンテナで制御済みだが念のため）
-            if (event.target.closest('button')) return; 
-
-            // マウスドラッグ中はクリックとみなさない
-            if (Math.abs(event.clientX - previousMousePosition.x) > 5 || 
-                Math.abs(event.clientY - previousMousePosition.y) > 5) return;
-
-            if (currentPlayer !== BLACK || !gameActive) return;
-
-            // マウス座標を正規化 (-1 to +1)
-            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
-
-            raycaster.setFromCamera(mouse, camera);
-
-            // 盤面のタイルとの交差判定
-            const intersects = raycaster.intersectObjects(tileMeshes);
-
-            if (intersects.length > 0) {
-                const tile = intersects[0].object;
-                const gx = tile.userData.gridX;
-                const gz = tile.userData.gridZ;
-
-                if (isValidMove(gx, gz, BLACK)) {
-                    executeMove(gx, gz, BLACK);
-                } else {
-                    // 不正な手（少し揺らすなどのフィードバックがあると良いが今回は省略）
-                    console.log("Cannot place here");
+            boardState[gz][gx] = p; 
+            createPiece(p, gx, gz);
+            const opp = p === BLACK ? WHITE : BLACK;
+            [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]].forEach(([dx, dz]) => {
+                let x = gx + dx, z = gz + dz, flips = [];
+                while (x >= 0 && x < 8 && z >= 0 && z < 8) {
+                    if (boardState[z][x] === opp) flips.push({x, z});
+                    else if (boardState[z][x] === p) {
+                        flips.forEach(f => { boardState[f.z][f.x] = p; pieces[f.z][f.x].userData.targetRotationX += Math.PI; });
+                        break;
+                    } else break;
+                    x += dx; z += dz;
                 }
+            });
+            currentPlayer = opp; updateUI();
+            if (!hasMove(currentPlayer)) {
+                currentPlayer = (currentPlayer === BLACK) ? WHITE : BLACK;
+                if (!hasMove(currentPlayer)) { gameActive = false; declare(); return; }
+                showMsg("パス！", 2000);
             }
+            if (currentPlayer === WHITE) setTimeout(cpu, 800);
         }
 
-        // カメラ操作系
-        function onMouseDown(e) {
-            isDragging = true;
-            previousMousePosition = { x: e.clientX, y: e.clientY };
+        function hasMove(p) { for(let z=0; z<8; z++) for(let x=0; x<8; x++) if(canPlace(x, z, p)) return true; return false; }
+
+        function cpu() {
+            let list = [];
+            for(let z=0; z<8; z++) for(let x=0; x<8; x++) if(canPlace(x, z, WHITE)) list.push({x, z});
+            if(list.length === 0) return;
+
+            let target;
+            if (gameLevel === 'EASY') {
+                target = list[Math.floor(Math.random() * list.length)];
+            } else if (gameLevel === 'NORMAL') {
+                const corners = list.filter(m => (m.x===0||m.x===7)&&(m.z===0||m.z===7));
+                if (corners.length > 0) {
+                    target = corners[Math.floor(Math.random() * corners.length)];
+                } else {
+                    list.sort((a, b) => getFlipCount(b.x, b.z, WHITE) - getFlipCount(a.x, a.z, WHITE));
+                    target = list[0];
+                }
+            } else {
+                let scoredMoves = list.map(m => {
+                    let s = getFlipCount(m.x, m.z, WHITE);
+                    if ((m.x===0||m.x===7)&&(m.z===0||m.z===7)) s += 100;
+                    if ((m.x===1||m.x===6)&&(m.z===1||m.z===6)) s -= 50;
+                    if (((m.x===0||m.x===7)&&(m.z===1||m.z===6)) || ((m.x===1||m.x===6)&&(m.z===0||m.z===7))) s -= 30;
+                    if (m.x===0||m.x===7||m.z===0||m.z===7) s += 10;
+                    return { ...m, score: s };
+                });
+                scoredMoves.sort((a, b) => b.score - a.score);
+                target = scoredMoves[0];
+            }
+            move(target.x, target.z, WHITE);
         }
+
+        function updateUI() {
+            let b=0, w=0; boardState.forEach(r => r.forEach(c => { if(c===BLACK) b++; if(c===WHITE) w++; }));
+            document.getElementById('score-black').textContent = b; document.getElementById('score-white').textContent = w;
+            document.getElementById('score-black-box').style.background = currentPlayer === BLACK ? "rgba(255,255,255,0.3)" : "rgba(255,255,255,0.1)";
+            document.getElementById('score-white-box').style.background = currentPlayer === WHITE ? "rgba(255,255,255,0.3)" : "rgba(255,255,255,0.1)";
+        }
+
+        function showMsg(t, d) { const el = document.getElementById('turn-message'); el.textContent = t; el.style.opacity = 1; if(d>0) setTimeout(()=>el.style.opacity=0, d); }
+        
+        function declare() {
+            let b=0, w=0; boardState.forEach(r => r.forEach(c => { if(c===BLACK) b++; if(c===WHITE) w++; }));
+            let result = b > w ? "YOUR WIN!" : b < w ? "CPU WIN..." : "DRAW";
+            showMsg(`GAME OVER\n${result}`, 0);
+        }
+
         function onMouseMove(e) {
             if (isDragging) {
-                const deltaX = e.clientX - previousMousePosition.x;
-                const deltaY = e.clientY - previousMousePosition.y;
-
-                cameraAngle.theta -= deltaX * 0.01;
-                cameraAngle.phi -= deltaY * 0.01;
-                
-                // 角度制限（真上〜真横）
-                cameraAngle.phi = Math.max(0.1, Math.min(Math.PI / 2 - 0.1, cameraAngle.phi));
-
-                updateCameraPosition();
+                cameraAngle.theta -= (e.clientX - previousMousePosition.x) * 0.005;
+                cameraAngle.phi = Math.max(0.1, Math.min(Math.PI/2 - 0.1, cameraAngle.phi - (e.clientY - previousMousePosition.y) * 0.005));
+                updateCamera();
                 previousMousePosition = { x: e.clientX, y: e.clientY };
-            }
-        }
-        function onMouseUp() { isDragging = false; }
-        
-        function onMouseWheel(e) {
-            e.preventDefault();
-            cameraRadius += e.deltaY * 0.1;
-            cameraRadius = Math.max(40, Math.min(200, cameraRadius)); // ズーム制限
-            updateCameraPosition();
-        }
-
-        // タッチ操作対応
-        function onTouchStart(e) {
-            if(e.touches.length === 1) {
-                isDragging = true;
-                previousMousePosition = { x: e.touches[0].clientX, y: e.touches[0].clientY };
             }
         }
         function onTouchMove(e) {
             if (isDragging && e.touches.length === 1) {
-                e.preventDefault(); // スクロール防止
-                const deltaX = e.touches[0].clientX - previousMousePosition.x;
-                const deltaY = e.touches[0].clientY - previousMousePosition.y;
-                
-                cameraAngle.theta -= deltaX * 0.01;
-                cameraAngle.phi -= deltaY * 0.01;
-                cameraAngle.phi = Math.max(0.1, Math.min(Math.PI / 2 - 0.1, cameraAngle.phi));
-                
-                updateCameraPosition();
+                e.preventDefault();
+                cameraAngle.theta -= (e.touches[0].clientX - previousMousePosition.x) * 0.006;
+                cameraAngle.phi = Math.max(0.1, Math.min(Math.PI/2 - 0.1, cameraAngle.phi - (e.touches[0].clientY - previousMousePosition.y) * 0.006));
+                updateCamera();
                 previousMousePosition = { x: e.touches[0].clientX, y: e.touches[0].clientY };
             }
         }
-        function onTouchEnd() { isDragging = false; }
-
-        function updateCameraPosition() {
-            // 球面座標系からデカルト座標系へ
-            const x = cameraRadius * Math.sin(cameraAngle.phi) * Math.sin(cameraAngle.theta);
-            const y = cameraRadius * Math.cos(cameraAngle.phi);
-            const z = cameraRadius * Math.sin(cameraAngle.phi) * Math.cos(cameraAngle.theta);
-            camera.position.set(x, y, z);
-            camera.lookAt(0, 0, 0);
-        }
-
-        function onWindowResize() {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        }
-
-        // ==========================================
-        // アニメーションループ
-        // ==========================================
-        function animate() {
-            requestAnimationFrame(animate);
-
-            // 石のフリップアニメーション処理
-            for (let z = 0; z < BOARD_SIZE; z++) {
-                for (let x = 0; x < BOARD_SIZE; x++) {
-                    const piece = pieces[z][x];
-                    if (piece) {
-                        const target = piece.userData.targetRotationX;
-                        const current = piece.rotation.x;
-                        
-                        // 滑らかに回転させる (Linear interpolation)
-                        if (Math.abs(target - current) > 0.01) {
-                            // 回転速度
-                            const speed = 0.15;
-                            piece.rotation.x += (target - current) * speed;
-                            
-                            // 飛び上がる演出（回転中はY座標を上げる）
-                            // 角度の差分に応じて高さを変える
-                            const diff = Math.abs(target - piece.rotation.x);
-                            // 完全に裏返る中間地点(PI/2)で一番高くする簡易計算
-                            // sinカーブを使うときれい
-                            const jumpHeight = Math.sin(diff) * 5; 
-                            piece.position.y = 0.8 + Math.max(0, jumpHeight);
-                        } else {
-                            // ほぼ到達したら固定
-                            piece.rotation.x = target;
-                            piece.position.y = 0.8;
-                        }
-                    }
-                }
+        function onClick(e) {
+            if (e.target.closest('button') || currentPlayer !== BLACK || !gameActive) return;
+            mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+            raycaster.setFromCamera(mouse, camera);
+            const hits = raycaster.intersectObjects(tileMeshes);
+            if (hits.length > 0) {
+                const { gridX, gridZ } = hits[0].object.userData;
+                if (canPlace(gridX, gridZ, BLACK)) move(gridX, gridZ, BLACK);
             }
-
-            renderer.render(scene, camera);
         }
-
     </script>
 </body>
 </html>
